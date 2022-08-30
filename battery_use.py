@@ -26,8 +26,9 @@ def main():
     print(f'\n{stats["drain_awake"]}% of battery used over {stats["time_awake_hours"]}h {stats["time_awake_minutes"]}min of active usage')
     print(f'{stats["drain_asleep"]}% of battery used over {stats["time_asleep_hours"]}h {stats["time_asleep_minutes"]}min of sleep')
     print('\nRate of Use:')
-    print(f'{stats["rate_drain_awake"]}%/h of battery used during active usage')
-    print(f'{stats["rate_drain_asleep"]}%/h of battery used during sleep')
+    print(
+        f'{stats["rate_drain_awake"]:.2f}%/h of battery used during active usage')
+    print(f'{stats["rate_drain_asleep"]:.2f}%/h of battery used during sleep')
     if stats["estimate_full_awake_hours"] or stats["estimate_full_awake_minutes"] or stats["estimate_time_left_hours"] or stats["estimate_time_left_minutes"]:
         print('\nEstimates:')
         print(
