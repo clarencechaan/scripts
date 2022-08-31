@@ -11,36 +11,57 @@ def main():
     events = convert_lines(pmset_lines)
     print_events(events)
     stats = get_stats(events)
+
     print("----------------------------------------------------------------------")
-    if stats["plug_date_time"]:
-        print(
-            f'Summary from {datetime_to_str(stats["unplug_date_time"])} to {datetime_to_str(stats["plug_date_time"])}:')
+    if stats["plugged"]:
+        print(f'Currently charging ({stats["current_charge"]}%)')
     else:
-        print(
-            f'Summary from {datetime_to_str(stats["unplug_date_time"])} to now:')
+        print(f'Currently on battery ({stats["current_charge"]}%)')
+    print(f'\nSummary:')
     print(
-        f'Last charged to 100% on {datetime_to_str(stats["unplug_date_time"])}')
-    if stats["plug_date_time"]:
+        f'Last charged to 100% on {datetime_to_str(stats["full_unplug_date_time"])}')
+    if stats["plugged"]:
         print(
             f'Plugged in to AC at {stats["plug_charge"]}% on {datetime_to_str(stats["plug_date_time"])}')
-    print(f'\n{stats["drain_awake"]}% of battery used over {stats["time_awake_hours"]}h {stats["time_awake_minutes"]}min of active usage')
-    print(f'{stats["drain_asleep"]}% of battery used over {stats["time_asleep_hours"]}h {stats["time_asleep_minutes"]}min of sleep')
-    print('\nRate of Use:')
-    print(
-        f'{stats["rate_drain_awake"]:.2f}%/h of battery used during active usage')
-    print(f'{stats["rate_drain_asleep"]:.2f}%/h of battery used during sleep')
-    if stats["estimate_full_awake_hours"] or stats["estimate_full_awake_minutes"] or stats["estimate_time_left_hours"] or stats["estimate_time_left_minutes"]:
-        print('\nEstimates:')
+        print(f'\nSince plugged in ({stats["plug_time_ago_str"]} ago):')
         print(
-            f'{stats["estimate_full_awake_hours"]}h {stats["estimate_full_awake_minutes"]}min of active usage from full charge')
+            f'{stats["charge_gain"]}% of battery charged over {stats["plug_time_ago_str"]}')
+        print("\nRate of Charge:")
+        print(f'{stats["rate_charge"]:.2f}%/h of battery charged')
+        if stats["charge_gain"] > 0:
+            print('\nEstimates:')
+            print(
+                f'{stats["estimate_full_awake_time_str"]} to charge from 0% to 100%')
+            print(
+                f'{stats["estimate_charge_time_left_str"]} until fully charged')
+
+    else:
         print(
-            f'{stats["estimate_time_left_hours"]}h {stats["estimate_time_left_minutes"]}min of active usage left from current charge')
+            f'Last unplugged from AC at {stats["prev_unplug_charge"]}% on {datetime_to_str(stats["prev_unplug_date_time"])}')
+        print(f'\nSince unplug ({stats["unplug_time_ago_str"]} ago):')
+        print(
+            f'{stats["drain_awake"]}% of battery used over {stats["time_awake_str"]} of active usage')
+        print(
+            f'{stats["drain_asleep"]}% of battery used over {stats["time_asleep_str"]} of sleep')
+        print('\nRate of Use:')
+        print(
+            f'{stats["rate_drain_awake"]:.2f}%/h of battery used during active usage')
+        print(
+            f'{stats["rate_drain_asleep"]:.2f}%/h of battery used during sleep')
+        if stats["drain_awake"] > 0:
+            print('\nEstimates:')
+            print(
+                f'{stats["estimate_full_awake_time_str"]} of active usage from full charge')
+            print(
+                f'{stats["estimate_time_left_str"]} of active usage left from current charge')
 
     print("----------------------------------------------------------------------")
 
 
 def get_stats(events):
-    unplug_date_time = events[0]["date_time"]
+    full_unplug_date_time = events[0]["date_time"]
+    prev_unplug_date_time = full_unplug_date_time
+    prev_unplug_charge = events[0]["charge"]
     prev_date_time = None
     prev_charge = events[0]["charge"]
     current_charge = get_current_charge()
@@ -48,24 +69,27 @@ def get_stats(events):
     time_asleep = 0
     drain_awake = 0
     drain_asleep = 0
+    time_since_plug = 0
     prev_date_time = None
     awake = None
     rate_drain_awake = 0.00
     rate_drain_asleep = 0.00
-    plugged = None
+    rate_charge = 0.00
+    plugged = False
     plug_date_time = None
     plug_charge = None
+    plug_time_ago_str = None
+    charge_gain = 0
     estimate_full_awake_time = 0
     estimate_time_left = 0
-    estimate_full_awake_hours = 0
-    estimate_full_awake_minutes = 0
-    estimate_time_left_hours = 0
-    estimate_time_left_minutes = 0
+    estimate_full_charge_time = 0
+    estimate_charge_time_left = 0
+    estimate_full_awake_time_str = ""
+    estimate_time_left_str = ""
+    estimate_full_charge_time_str = ""
+    estimate_charge_time_left_str = ""
 
     for event in events:
-        if plugged == True:
-            break
-
         if prev_date_time != None and awake == False:
             time_asleep += (event["date_time"] -
                             prev_date_time).total_seconds()
@@ -74,20 +98,28 @@ def get_stats(events):
             time_awake += (event["date_time"] - prev_date_time).total_seconds()
             drain_awake += prev_charge - event["charge"]
 
-        if event["event_type"] == "PLUG":
+        if event["event_type"] == "PLUG" and not plugged:
+            plug_date_time = event["date_time"]
+            plug_charge = event["charge"]
             plugged = True
-        elif event["event_type"] == "UNPLUG":
+        elif event["event_type"] == "UNPLUG" and plugged:
+            prev_unplug_date_time = event["date_time"]
+            prev_unplug_charge = event["charge"]
+            time_awake = 0
+            time_asleep = 0
+            drain_awake = 0
+            drain_asleep = 0
             plugged = False
         elif event["event_type"] == "WAKE":
             if awake == None:
                 time_asleep += (event["date_time"] -
-                                unplug_date_time).total_seconds()
+                                prev_unplug_date_time).total_seconds()
                 drain_asleep += prev_charge - event["charge"]
             awake = True
         elif event["event_type"] == "SLEEP":
             if awake == None:
                 time_awake += (event["date_time"] -
-                               unplug_date_time).total_seconds()
+                               prev_unplug_date_time).total_seconds()
                 drain_awake += prev_charge - event["charge"]
             awake = False
 
@@ -95,49 +127,82 @@ def get_stats(events):
         prev_charge = event["charge"]
 
     if plugged == True:
-        plug_date_time = prev_date_time
-        plug_charge = prev_charge
-    else:
-        time_awake += (datetime.now() - prev_date_time).total_seconds()
-        drain_awake += prev_charge - get_current_charge()
+        plug_time_ago_str = date_diff_str(plug_date_time, datetime.now())
+        time_since_plug = (datetime.now() - plug_date_time).total_seconds()
+        charge_gain = current_charge - plug_charge
 
-    time_awake_hours = int(time_awake // 3600)
-    time_awake_minutes = int((time_awake % 3600) // 60)
-    time_asleep_hours = int(time_asleep // 3600)
-    time_asleep_minutes = int((time_asleep % 3600) // 60)
+    time_awake += (datetime.now() - prev_date_time).total_seconds()
+    drain_awake += prev_charge - get_current_charge()
 
-    if (time_awake / 3600):
+    time_awake_str = duration_str(time_awake)
+    time_asleep_str = duration_str(time_asleep)
+
+    if not plugged and time_awake / 3600:
         rate_drain_awake = math.floor(
             (drain_awake / (time_awake / 3600)) * 100) / 100
-    if (time_asleep / 3600):
+    if not plugged and time_asleep / 3600:
         rate_drain_asleep = math.floor(
             (drain_asleep / (time_asleep / 3600)) * 100) / 100
+    if plugged and time_since_plug:
+        rate_charge = math.floor(
+            (charge_gain / (time_since_plug) / 3600) * 100) / 100
 
     if drain_awake > 0:
         estimate_full_awake_time = (100 / drain_awake) * time_awake
         estimate_time_left = (current_charge / drain_awake) * time_awake
-        estimate_full_awake_hours = int(estimate_full_awake_time // 3600)
-        estimate_full_awake_minutes = int(
-            (estimate_full_awake_time % 3600) // 60)
-        estimate_time_left_hours = int(estimate_time_left // 3600)
-        estimate_time_left_minutes = int((estimate_time_left % 3600) // 60)
+        estimate_full_awake_time_str = duration_str(estimate_full_awake_time)
+        estimate_time_left_str = duration_str(estimate_time_left)
+    if charge_gain > 0:
+        estimate_full_charge_time = (100 / charge_gain) * time_since_plug
+        estimate_charge_time_left = (
+            current_charge / charge_gain) * time_since_plug
+        estimate_full_charge_time_str = duration_str(estimate_full_charge_time)
+        estimate_charge_time_left_str = duration_str(estimate_charge_time_left)
 
-    return {"time_awake_hours": time_awake_hours,
-            "time_awake_minutes": time_awake_minutes,
-            "time_asleep_hours": time_asleep_hours,
-            "time_asleep_minutes": time_asleep_minutes,
+    unplug_time_ago_str = date_diff_str(prev_unplug_date_time, datetime.now())
+
+    return {"time_awake_str": time_awake_str,
+            "time_asleep_str": time_asleep_str,
             "drain_awake": drain_awake,
             "drain_asleep": drain_asleep,
             "rate_drain_awake": rate_drain_awake,
             "rate_drain_asleep": rate_drain_asleep,
-            "unplug_date_time": unplug_date_time,
+            "full_unplug_date_time": full_unplug_date_time,
+            "prev_unplug_date_time": prev_unplug_date_time,
+            "unplug_time_ago_str": unplug_time_ago_str,
+            "prev_unplug_charge": prev_unplug_charge,
             "plug_date_time": plug_date_time,
             "plug_charge": plug_charge,
+            "plug_time_ago_str": plug_time_ago_str,
+            "charge_gain": charge_gain,
             "current_charge": current_charge,
-            "estimate_full_awake_hours": estimate_full_awake_hours,
-            "estimate_full_awake_minutes": estimate_full_awake_minutes,
-            "estimate_time_left_hours": estimate_time_left_hours,
-            "estimate_time_left_minutes": estimate_time_left_minutes}
+            "estimate_full_awake_time_str": estimate_full_awake_time_str,
+            "estimate_time_left_str": estimate_time_left_str,
+            "rate_charge": rate_charge,
+            "estimate_full_charge_time_str": estimate_full_charge_time_str,
+            "estimate_charge_time_left_str": estimate_charge_time_left_str,
+            "plugged": plugged}
+
+
+def date_diff_str(date1, date2):
+    seconds = abs(date1 - date2).total_seconds()
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    string = ""
+    if hours > 0:
+        string += f'{hours}h '
+    string += f'{minutes}min'
+    return string
+
+
+def duration_str(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    string = ""
+    if hours > 0:
+        string += f'{hours}h '
+    string += f'{minutes}min'
+    return string
 
 
 def get_pmset_log():
@@ -156,11 +221,9 @@ def get_current_charge():
 def get_relevant_lines():
     lines = get_pmset_log().splitlines()
     lines.reverse()
-    unplug_index = list(
-        "Summary- [System: " in line and " Using Batt" in line for line in lines).index(True)
-    unplug_index = next(i for i, line in enumerate(
+    full_unplug_index = next(i for i, line in enumerate(
         lines) if "Summary- [System: " in line and " Using Batt" in line and get_line_charge(line) == 100)
-    lines = lines[:unplug_index + 1]
+    lines = lines[:full_unplug_index + 1]
     lines.reverse()
     return lines
 
@@ -176,7 +239,7 @@ def convert_lines(lines):
 
 
 def unplug_event(line):
-    if "Summary- [System: " in line and " Using Batt" in line and get_line_charge(line) == 100:
+    if "Summary- [System: " in line and " Using Batt" in line:
         date_time = get_line_date_time(line)
         charge = get_line_charge(line)
         unplug_event = {"event_type": "UNPLUG",
