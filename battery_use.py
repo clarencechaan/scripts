@@ -28,7 +28,7 @@ def main():
             f'{stats["charge_gain"]}% of battery charged over {stats["plug_time_ago_str"]}')
         print("\nRate of Charge:")
         print(f'{stats["rate_charge"]:.2f}%/h of battery charged')
-        if stats["charge_gain"] > 0:
+        if stats["charge_gain"] >= 5:
             print('\nEstimates:')
             print(
                 f'{stats["estimate_full_awake_time_str"]} to charge from 0% to 100%')
@@ -48,7 +48,7 @@ def main():
             f'{stats["rate_drain_awake"]:.2f}%/h of battery used during active usage')
         print(
             f'{stats["rate_drain_asleep"]:.2f}%/h of battery used during sleep')
-        if stats["drain_awake"] > 0:
+        if stats["drain_awake"] >= 5:
             print('\nEstimates:')
             print(
                 f'{stats["estimate_full_awake_time_str"]} of active usage from full charge')
@@ -145,14 +145,14 @@ def get_stats(events):
             (drain_asleep / (time_asleep / 3600)) * 100) / 100
     if plugged and time_since_plug:
         rate_charge = math.floor(
-            (charge_gain / (time_since_plug) / 3600) * 100) / 100
+            (charge_gain / (time_since_plug / 3600)) * 100) / 100
 
-    if drain_awake > 0:
+    if drain_awake >= 5:
         estimate_full_awake_time = (100 / drain_awake) * time_awake
         estimate_time_left = (current_charge / drain_awake) * time_awake
         estimate_full_awake_time_str = duration_str(estimate_full_awake_time)
         estimate_time_left_str = duration_str(estimate_time_left)
-    if charge_gain > 0:
+    if charge_gain >= 5:
         estimate_full_charge_time = (100 / charge_gain) * time_since_plug
         estimate_charge_time_left = (
             current_charge / charge_gain) * time_since_plug
