@@ -13,7 +13,9 @@ def main():
     stats = get_stats(events)
 
     print("----------------------------------------------------------------------")
-    if stats["plugged"]:
+    if stats["plugged"] and stats["current_charge"] == 100:
+        print(f'Fully charged (100%)')
+    elif stats["plugged"]:
         print(f'Charging ({stats["current_charge"]}%)')
     else:
         print(f'On battery ({stats["current_charge"]}%)')
@@ -24,16 +26,19 @@ def main():
         print(
             f'Plugged in to AC at {stats["plug_charge"]}% on {datetime_to_str(stats["plug_date_time"])}')
         print(f'\nSince plugged in ({stats["plug_time_ago_str"]} ago):')
-        print(
-            f'{stats["charge_gain"]}% of battery charged over {stats["plug_time_ago_str"]}')
-        print("\nRate of Charge:")
-        print(f'{stats["rate_charge"]:.2f}%/h of battery charged')
-        if stats["charge_gain"] >= 5:
-            print('\nEstimates:')
+        if stats["current_charge"] == 100:
+            print(f'{stats["charge_gain"]}% of battery charged')
+        else:
             print(
-                f'{stats["estimate_full_charge_time_str"].rjust(9)} to charge from 0% to 100%')
-            print(
-                f'{stats["estimate_charge_time_left_str"].rjust(9)} until fully charged')
+                f'{stats["charge_gain"]}% of battery charged over {stats["plug_time_ago_str"]}')
+            print("\nRate of Charge:")
+            print(f'{stats["rate_charge"]:.2f}%/h of battery charged')
+            if stats["charge_gain"] >= 5:
+                print('\nEstimates:')
+                print(
+                    f'{stats["estimate_full_charge_time_str"].rjust(9)} to charge from 0% to 100%')
+                print(
+                    f'{stats["estimate_charge_time_left_str"].rjust(9)} until fully charged')
 
     else:
         print(
@@ -126,7 +131,7 @@ def get_stats(events):
         prev_date_time = event["date_time"]
         prev_charge = event["charge"]
 
-    if plugged == True:
+    if plugged:
         plug_time_ago_str = date_diff_str(plug_date_time, datetime.now())
         time_since_plug = (datetime.now() - plug_date_time).total_seconds()
         charge_gain = current_charge - plug_charge
