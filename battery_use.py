@@ -14,9 +14,9 @@ def main():
 
     print("----------------------------------------------------------------------")
     if stats["plugged"]:
-        print(f'Currently charging ({stats["current_charge"]}%)')
+        print(f'Charging ({stats["current_charge"]}%)')
     else:
-        print(f'Currently on battery ({stats["current_charge"]}%)')
+        print(f'On battery ({stats["current_charge"]}%)')
     print(f'\nSummary:')
     print(
         f'Last charged to 100% on {datetime_to_str(stats["full_unplug_date_time"])}')
@@ -31,9 +31,9 @@ def main():
         if stats["charge_gain"] >= 5:
             print('\nEstimates:')
             print(
-                f'{stats["estimate_full_awake_time_str"]} to charge from 0% to 100%')
+                f'{stats["estimate_full_charge_time_str"].rjust(9)} to charge from 0% to 100%')
             print(
-                f'{stats["estimate_charge_time_left_str"]} until fully charged')
+                f'{stats["estimate_charge_time_left_str"].rjust(9)} until fully charged')
 
     else:
         print(
@@ -51,9 +51,9 @@ def main():
         if stats["drain_awake"] >= 5:
             print('\nEstimates:')
             print(
-                f'{stats["estimate_full_awake_time_str"]} of active usage from full charge')
+                f'{stats["estimate_full_awake_time_str"].rjust(9)} of active usage from full charge')
             print(
-                f'{stats["estimate_time_left_str"]} of active usage left from current charge')
+                f'{stats["estimate_time_left_str"].rjust(9)} of active usage left from current charge')
 
     print("----------------------------------------------------------------------")
 
@@ -155,7 +155,7 @@ def get_stats(events):
     if charge_gain >= 5:
         estimate_full_charge_time = (100 / charge_gain) * time_since_plug
         estimate_charge_time_left = (
-            current_charge / charge_gain) * time_since_plug
+            (100 - current_charge) / charge_gain) * time_since_plug
         estimate_full_charge_time_str = duration_str(estimate_full_charge_time)
         estimate_charge_time_left_str = duration_str(estimate_charge_time_left)
 
