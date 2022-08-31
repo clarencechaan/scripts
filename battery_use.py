@@ -6,9 +6,9 @@ from datetime import datetime
 
 
 def main():
-    pmset_lines = get_relevant_lines()
-    fill_charge(pmset_lines)
-    events = convert_lines(pmset_lines)
+    pmset_lines = get_pmset_log().splitlines()
+    lines = get_relevant_lines(pmset_lines)
+    events = convert_lines(lines)
     print_events(events)
     stats = get_stats(events)
 
@@ -223,8 +223,8 @@ def get_current_charge():
     return charge_int
 
 
-def get_relevant_lines():
-    lines = get_pmset_log().splitlines()
+def get_relevant_lines(lines):
+    fill_charge(lines)
     lines.reverse()
     full_unplug_index = next(i for i, line in enumerate(
         lines) if "Summary- [System: " in line and " Using Batt" in line and get_line_charge(line) == 100)
