@@ -55,12 +55,12 @@ def get_stats(events):
     plugged = None
     plug_date_time = None
     plug_charge = None
-    estimate_full_awake_time = None
-    estimate_time_left = None
-    estimate_full_awake_hours = None
-    estimate_full_awake_minutes = None
-    estimate_time_left_hours = None
-    estimate_time_left_minutes = None
+    estimate_full_awake_time = 0
+    estimate_time_left = 0
+    estimate_full_awake_hours = 0
+    estimate_full_awake_minutes = 0
+    estimate_time_left_hours = 0
+    estimate_time_left_minutes = 0
 
     for event in events:
         if plugged == True:
@@ -116,10 +116,11 @@ def get_stats(events):
     if drain_awake > 0:
         estimate_full_awake_time = (100 / drain_awake) * time_awake
         estimate_time_left = (current_charge / drain_awake) * time_awake
-    estimate_full_awake_hours = int(estimate_full_awake_time // 3600)
-    estimate_full_awake_minutes = int((estimate_full_awake_time % 3600) // 60)
-    estimate_time_left_hours = int(estimate_time_left // 3600)
-    estimate_time_left_minutes = int((estimate_time_left % 3600) // 60)
+        estimate_full_awake_hours = int(estimate_full_awake_time // 3600)
+        estimate_full_awake_minutes = int(
+            (estimate_full_awake_time % 3600) // 60)
+        estimate_time_left_hours = int(estimate_time_left // 3600)
+        estimate_time_left_minutes = int((estimate_time_left % 3600) // 60)
 
     return {"time_awake_hours": time_awake_hours,
             "time_awake_minutes": time_awake_minutes,
