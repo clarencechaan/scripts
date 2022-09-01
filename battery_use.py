@@ -42,7 +42,7 @@ def main():
 
     else:
         print(
-            f'Last unplugged from AC at {stats["prev_unplug_charge"]}% on {datetime_to_str(stats["prev_unplug_date_time"])}')
+            f'Last unplugged from AC at {stats["latest_unplug_charge"]}% on {datetime_to_str(stats["latest_unplug_date_time"])}')
         print(f'\nSince unplug ({stats["unplug_time_ago_str"]} ago):')
         print(
             f'{stats["drain_awake"]}% of battery used over {stats["time_awake_str"]} of active usage')
@@ -65,8 +65,8 @@ def main():
 
 def get_stats(events):
     full_unplug_date_time = events[0]["date_time"]
-    prev_unplug_date_time = full_unplug_date_time
-    prev_unplug_charge = events[0]["charge"]
+    latest_unplug_date_time = full_unplug_date_time
+    latest_unplug_charge = events[0]["charge"]
     prev_date_time = None
     prev_charge = events[0]["charge"]
     current_charge = get_current_charge()
@@ -108,8 +108,8 @@ def get_stats(events):
             plug_charge = event["charge"]
             plugged = True
         elif event["event_type"] == "UNPLUG" and plugged:
-            prev_unplug_date_time = event["date_time"]
-            prev_unplug_charge = event["charge"]
+            latest_unplug_date_time = event["date_time"]
+            latest_unplug_charge = event["charge"]
             time_awake = 0
             time_asleep = 0
             drain_awake = 0
@@ -118,13 +118,13 @@ def get_stats(events):
         elif event["event_type"] == "WAKE":
             if awake == None:
                 time_asleep += (event["date_time"] -
-                                prev_unplug_date_time).total_seconds()
+                                latest_unplug_date_time).total_seconds()
                 drain_asleep += prev_charge - event["charge"]
             awake = True
         elif event["event_type"] == "SLEEP":
             if awake == None:
                 time_awake += (event["date_time"] -
-                               prev_unplug_date_time).total_seconds()
+                               latest_unplug_date_time).total_seconds()
                 drain_awake += prev_charge - event["charge"]
             awake = False
 
@@ -164,7 +164,8 @@ def get_stats(events):
         estimate_full_charge_time_str = duration_str(estimate_full_charge_time)
         estimate_charge_time_left_str = duration_str(estimate_charge_time_left)
 
-    unplug_time_ago_str = date_diff_str(prev_unplug_date_time, datetime.now())
+    unplug_time_ago_str = date_diff_str(
+        latest_unplug_date_time, datetime.now())
 
     return {"time_awake_str": time_awake_str,
             "time_asleep_str": time_asleep_str,
@@ -173,9 +174,9 @@ def get_stats(events):
             "rate_drain_awake": rate_drain_awake,
             "rate_drain_asleep": rate_drain_asleep,
             "full_unplug_date_time": full_unplug_date_time,
-            "prev_unplug_date_time": prev_unplug_date_time,
+            "latest_unplug_date_time": latest_unplug_date_time,
             "unplug_time_ago_str": unplug_time_ago_str,
-            "prev_unplug_charge": prev_unplug_charge,
+            "latest_unplug_charge": latest_unplug_charge,
             "plug_date_time": plug_date_time,
             "plug_charge": plug_charge,
             "plug_time_ago_str": plug_time_ago_str,
@@ -226,8 +227,13 @@ def get_current_charge():
 def get_relevant_lines(lines):
     fill_charge(lines)
     lines.reverse()
-    full_unplug_index = next(i for i, line in enumerate(
-        lines) if "Summary- [System: " in line and " Using Batt" in line and get_line_charge(line) == 100)
+    # get index of the oldest of the most recent set of 100% unplug lines
+    full_unplug_index = None
+    for idx, line in enumerate(lines):
+        if "Summary- [System: " in line and " Using Batt" in line and get_line_charge(line) == 100:
+            full_unplug_index = idx
+        if full_unplug_index != None and get_line_charge(line) < 100:
+            break
     lines = lines[:full_unplug_index + 1]
     lines.reverse()
     return lines
