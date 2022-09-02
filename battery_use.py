@@ -76,7 +76,7 @@ def get_stats(events):
     drain_asleep = 0
     time_since_plug = 0
     prev_date_time = None
-    awake = None
+    awake = isFirstAwake(events)
     rate_drain_awake = 0.00
     rate_drain_asleep = 0.00
     rate_charge = 0.00
@@ -95,6 +95,7 @@ def get_stats(events):
     estimate_charge_time_left_str = ""
 
     for event in events:
+        print(event["event_type"], event["line"])
         if prev_date_time != None and awake == False:
             time_asleep += (event["date_time"] -
                             prev_date_time).total_seconds()
@@ -188,6 +189,18 @@ def get_stats(events):
             "estimate_full_charge_time_str": estimate_full_charge_time_str,
             "estimate_charge_time_left_str": estimate_charge_time_left_str,
             "plugged": plugged}
+
+
+def isFirstAwake(events):
+    awake = True
+    for event in events:
+        if event["event_type"] == "SLEEP":
+            awake = True
+            break
+        elif event["event_type"] == "AWAKE":
+            awake = False
+            break
+    return awake
 
 
 def date_diff_str(date1, date2):
