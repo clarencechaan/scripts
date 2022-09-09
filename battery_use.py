@@ -95,7 +95,6 @@ def get_stats(events):
     estimate_charge_time_left_str = ""
 
     for event in events:
-        print(event["event_type"], event["line"])
         if prev_date_time != None and awake == False:
             time_asleep += (event["date_time"] -
                             prev_date_time).total_seconds()
